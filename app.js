@@ -349,13 +349,17 @@ app.use((error, request, response, next) => {
   response.status(500).json({ error: 'Internal server error' });
 });
 
-async function start() {
+async function init() {
   if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
     throw new Error('JWT_SECRET must be set to a random value of at least 32 characters');
   }
   await redis.connect();
   const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
   await pool.query(schema);
+}
+
+async function start() {
+  await init();
   const server = app.listen(process.env.PORT || 8000, '0.0.0.0', () => {
     console.log(`API listening on port ${process.env.PORT || 8000}`);
   });
@@ -369,7 +373,12 @@ async function start() {
   process.on('SIGTERM', shutdown);
 }
 
-start().catch((error) => {
-  console.error('Could not start API:', error.message);
-  process.exit(1);
-});
+// Only start the HTTP server when run directly (`node app.js`), so tests can import the app.
+if (require.main === module) {
+  start().catch((error) => {
+    console.error('Could not start API:', error.message);
+    process.exit(1);
+  });
+}
+
+module.exports = { app, pool, redis, init };

@@ -169,3 +169,31 @@ This is a learning project: it does not include refresh tokens, rate limiting,
 payments, order cancellation/restocking, or deployment hardening. The single
 API process is enough to demonstrate SQL transactions and caching without
 adding distributed locks or service-to-service complexity.
+
+## Testing
+
+Tests use Jest and Supertest against a real PostgreSQL and Redis (no mocks). They run
+against a dedicated database whose name must contain `test`, because they truncate tables.
+
+```bash
+docker compose up -d
+docker compose exec postgres createdb -U ecommerce ecommerce_test
+npm test                # run the suite
+npm run test:coverage   # with a coverage report
+```
+
+Override the connections with `TEST_DATABASE_URL` and `TEST_REDIS_URL` if needed.
+
+The suite covers auth, role-based access, product CRUD, Redis cache invalidation, cart
+behaviour, order snapshots, and concurrent checkouts (no overselling, no deadlocks).
+GitHub Actions runs it on every push and pull request (`.github/workflows/ci.yml`).
+
+## Load testing
+
+```bash
+npm run load
+```
+
+Seeds 5,000 products, then measures listing latency with a warm cache vs. cache misses, and
+fires 200 concurrent checkouts at 100 units of stock, verifying nothing is oversold. Results
+are written to `load-test/results.json` and depend on your machine.
